@@ -848,7 +848,7 @@ async function switchYear(yr){
   const b=document.getElementById('yr-badge');if(b)b.textContent='📅 '+yr;
   const d=document.getElementById('dash-yr-lbl');if(d)d.textContent='Année '+yr;
   const c=document.getElementById('couts-yr');if(c)c.textContent=yr+' · Modifier = recalcul automatique partout';
-  yrClose();showLoading('Chargement de l'année '+yr+'…');
+  yrClose();showLoading("Chargement de l'année "+yr+"…");
   try{
     // Créer l'année si elle n'existe pas
     try{await SB.req('POST','ig_annees',{id:yr,label:yr});}catch(e){}
