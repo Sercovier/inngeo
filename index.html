@@ -681,6 +681,24 @@ function togglePw(){
 function forgotPw(){
   alert("Mot de passe oublié ?\n\nLe code administrateur par défaut est : inngeo2025\n\nSi vous l'avez changé et oublié, l'administrateur peut le réinitialiser dans :\nParamètres → Sécurité → Changer le mot de passe admin.\n\nPour toute aide : info@sercovier.ca");
 }
+// ── MÉMOIRE DE SESSION (reste connecté 8h) ──────────────────
+function saveSession(role, userId, userObj){
+  try{
+    const data={role,userId,userObj,expire:Date.now()+8*60*60*1000};
+    localStorage.setItem('ig_session', JSON.stringify(data));
+  }catch(e){}
+}
+function clearSession(){
+  try{ localStorage.removeItem('ig_session'); }catch(e){}
+}
+async function tryRestoreSession(){
+  let data=null;
+  try{ data=JSON.parse(localStorage.getItem('ig_session')); }catch(e){ return false; }
+  if(!data || !data.expire || Date.now()>data.expire){ clearSession(); return false; }
+  curRole=data.role; curUserId=data.userId; curUserObj=data.userObj;
+  await startApp();
+  return true;
+}
 function showAuthErr(msg){
   const e=document.getElementById('l-err');
   if(msg)e.textContent=msg;
@@ -703,13 +721,13 @@ async function doLogin() {
     // Vérifier le mot de passe admin dans la config cloud
     const cfg = await SB.get('ig_config', '?cle=eq.admin_pw');
     const adminPw = (cfg && cfg.length) ? cfg[0].valeur : DEFAULT_ADMIN;
-    if(p === adminPw || p === DEFAULT_ADMIN){ curRole='admin'; curUserId=null; await startApp(); return; }
+   if(p === adminPw || p === DEFAULT_ADMIN){ curRole='admin'; curUserId=null; saveSession('admin',null,null); await startApp(); return; }
     // Vérifier les utilisateurs partagés
     const users = await SB.get('ig_config', '?cle=like.user_*');
     const userMap = {};
     (users||[]).forEach(u => { try { userMap[u.cle] = JSON.parse(u.valeur); } catch(e2){} });
     const found = Object.values(userMap).find(u => u.pw===p && u.actif!==false);
-    if(found){ curRole='user'; curUserId=found.id; curUserObj=found; await startApp(); return; }
+    if(found){ curRole='user'; curUserId=found.id; curUserObj=found; saveSession('user',found.id,found); await startApp(); return; }
     hideLoading();
     showAuthErr('Code incorrect');
   } catch(err) {
@@ -845,6 +863,7 @@ async function seedSupabase() {
 }
 
 function doLogout(){
+  clearSession();
   curRole=null;curUserId=null;
   document.getElementById('auth').classList.remove('gone');
   document.getElementById('app').classList.remove('on');
@@ -1598,7 +1617,7 @@ function openModal(id){document.getElementById(id).classList.remove('hid');}
 function closeModal(id){document.getElementById(id).classList.add('hid');}
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.add('hid');}));
-  document.getElementById('l-pw').focus();
+ tryRestoreSession().then(restored=>{ if(!restored){ const e=document.getElementById('l-pw'); if(e)e.focus(); } });
 });
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
